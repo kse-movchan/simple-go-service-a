@@ -53,7 +53,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, http.StatusOK, resp)
 }
 
-// GET /hello?name=World - Simple hello endpoint
+// GET /hello?name=World - New feature: enhanced hello endpoint
 func helloHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -66,7 +66,7 @@ func helloHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := HelloResponse{
-		Greeting:  "Hello, " + name + "!",
+		Greeting:  "Welcome, " + name + "! This is the new feature hello endpoint.",
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	}
 	jsonResponse(w, http.StatusOK, resp)
