@@ -13,3 +13,15 @@ jobs:
     secrets: inherit
     with:
       go-version: '1.21'
+  ci-status:
+    name: CI Status
+    runs-on: self-hosted
+    needs: [build]
+    if: always()
+    steps:
+      - name: Check CI result
+        run: |
+          if [ "${{ needs.build.result }}" != "success" ]; then
+            echo "CI failed"
+            exit 1
+          fi      
