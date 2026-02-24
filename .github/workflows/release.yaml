@@ -29,11 +29,11 @@ jobs:
         id: platform
         shell: pwsh
         run: |
-          case "$RUNNER_OS" in
-            macOS)   echo "goarch=arm64" >> $GITHUB_OUTPUT ;;
-            Windows) echo "goarch=amd64" >> $GITHUB_OUTPUT ;;
-            Linux)   echo "goarch=amd64" >> $GITHUB_OUTPUT ;;
-          esac
+          switch ("$env:RUNNER_OS") {
+            "macOS"  { "goarch=arm64" | Out-File -FilePath $env:GITHUB_OUTPUT -Append }
+            "Windows" { "goarch=amd64" | Out-File -FilePath $env:GITHUB_OUTPUT -Append }
+            "Linux"  { "goarch=amd64" | Out-File -FilePath $env:GITHUB_OUTPUT -Append }
+          }
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -46,41 +46,44 @@ jobs:
         shell: pwsh
         run: |
           git fetch --tags
-          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "current_tag=$latest_tag" >> $GITHUB_OUTPUT
-          echo "Latest tag: $latest_tag"
+          $latest_tag = (git describe --tags --abbrev=0 2>$null) -or "v0.0.0"
+          "current_tag=$latest_tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Output "Latest tag: $latest_tag"
 
       - name: Increment version
         id: increment
         shell: pwsh
         run: |
-          current_tag="${{ steps.get_tag.outputs.current_tag }}"
-          version_type="${{ github.event.inputs.version_type }}"
+          $current_tag = "${{ steps.get_tag.outputs.current_tag }}"
+          $version_type = "${{ github.event.inputs.version_type }}"
 
           # Validate tag format (must be vX.Y.Z)
-          if [[ ! "$current_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Invalid tag format: $current_tag (expected vX.Y.Z)"
+          if ($current_tag -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+$') {
+            Write-Output "::error::Invalid tag format: $current_tag (expected vX.Y.Z)"
             exit 1
-          fi
+          }
 
           # Remove 'v' prefix and split
-          version=${current_tag#v}
-          IFS='.' read -r major minor patch <<< "$version"
+          $version = $current_tag -replace '^v', ''
+          $parts = $version -split '\.'
+          $major = [int]$parts[0]
+          $minor = [int]$parts[1]
+          $patch = [int]$parts[2]
 
-          case $version_type in
-            major) major=$((major + 1)); minor=0; patch=0 ;;
-            minor) minor=$((minor + 1)); patch=0 ;;
-            patch) patch=$((patch + 1)) ;;
-          esac
+          switch ($version_type) {
+            "major" { $major += 1; $minor = 0; $patch = 0 }
+            "minor" { $minor += 1; $patch = 0 }
+            "patch" { $patch += 1 }
+          }
 
-          new_tag="v${major}.${minor}.${patch}"
-          echo "new_tag=$new_tag" >> $GITHUB_OUTPUT
-          echo "New tag: $new_tag"
+          $new_tag = "v$major.$minor.$patch"
+          "new_tag=$new_tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Output "New tag: $new_tag"
 
       - name: Create and push tag
         shell: pwsh
         run: |
-          new_tag="${{ steps.increment.outputs.new_tag }}"
+          $new_tag = "${{ steps.increment.outputs.new_tag }}"
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -88,7 +91,7 @@ jobs:
           git tag -a "$new_tag" -m "Release $new_tag"
           git push origin "$new_tag"
 
-          echo "Created and pushed tag: $new_tag"
+          Write-Output "Created and pushed tag: $new_tag"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -116,15 +119,15 @@ jobs:
       - name: Summary
         shell: pwsh
         run: |
-          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Repository**: ${{ github.event.repository.name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Previous version**: ${{ needs.increment-version.outputs.current_tag }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **New version**: ${{ needs.increment-version.outputs.new_tag }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Increment type**: ${{ github.event.inputs.version_type }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
-          echo "- **Binary**: ${{ github.event.repository.name }}-${{ needs.increment-version.outputs.new_tag }}-linux-${{ needs.increment-version.outputs.goarch }}.tar.gz" >> $GITHUB_STEP_SUMMARY
-          echo "- **Docker**: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ needs.increment-version.outputs.new_tag }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "[View Release](https://github.com/${{ github.repository }}/releases/tag/${{ needs.increment-version.outputs.new_tag }})" >> $GITHUB_STEP_SUMMARY
+          "## Release Summary" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- **Repository**: ${{ github.event.repository.name }}" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- **Previous version**: ${{ needs.increment-version.outputs.current_tag }}" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- **New version**: ${{ needs.increment-version.outputs.new_tag }}" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- **Increment type**: ${{ github.event.inputs.version_type }}" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "### Artifacts" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- **Binary**: ${{ github.event.repository.name }}-${{ needs.increment-version.outputs.new_tag }}-linux-${{ needs.increment-version.outputs.goarch }}.tar.gz" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- **Docker**: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ needs.increment-version.outputs.new_tag }}" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "[View Release](https://github.com/${{ github.repository }}/releases/tag/${{ needs.increment-version.outputs.new_tag }})" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
