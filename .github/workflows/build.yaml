@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    uses: kse-bd8338bbe006/kse-labs-trusted-workflows/.github/workflows/go-ci.yaml@main
+    uses: kse-movchan/kse-labs-trusted-workflows/.github/workflows/go-ci.yaml@main
     secrets: inherit
     with:
       go-version: '1.21'
@@ -20,6 +20,7 @@ jobs:
     if: always()
     steps:
       - name: Check CI result
+	shell: pwsh
         run: |
           if [ "${{ needs.build.result }}" != "success" ]; then
             echo "CI failed"
