@@ -27,7 +27,7 @@ jobs:
     steps:
       - name: Detect platform
         id: platform
-        shell: bash
+        shell: pwsh
         run: |
           case "$RUNNER_OS" in
             macOS)   echo "goarch=arm64" >> $GITHUB_OUTPUT ;;
@@ -43,7 +43,7 @@ jobs:
 
       - name: Get latest tag
         id: get_tag
-        shell: bash
+        shell: pwsh
         run: |
           git fetch --tags
           latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
@@ -52,7 +52,7 @@ jobs:
 
       - name: Increment version
         id: increment
-        shell: bash
+        shell: pwsh
         run: |
           current_tag="${{ steps.get_tag.outputs.current_tag }}"
           version_type="${{ github.event.inputs.version_type }}"
@@ -78,7 +78,7 @@ jobs:
           echo "New tag: $new_tag"
 
       - name: Create and push tag
-        shell: bash
+        shell: pwsh
         run: |
           new_tag="${{ steps.increment.outputs.new_tag }}"
 
@@ -114,7 +114,7 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Summary
-        shell: bash
+        shell: pwsh
         run: |
           echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
